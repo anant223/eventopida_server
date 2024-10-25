@@ -1,0 +1,5 @@
+/node_moules
+./dist
+*.env
+.env
+.env.*
