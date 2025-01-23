@@ -13,6 +13,7 @@ const eventSchema = new Schema(
         },
         thumbnail: {
             type: String,
+            required : true,
         },
         duration: {
             type: Number,
@@ -34,6 +35,7 @@ const eventSchema = new Schema(
         ],
         tag: {
             type: String,
+            required: true
         },
         status: {
             type: String,

@@ -5,7 +5,7 @@ const asyncHandler = (requesHandler) =>{
             await requesHandler(req, res, next)
         } catch (error) {
             res.status(error.code || 500).json({
-              error: error.message,
+                error: error.message,
                 success: false,
             });
         }

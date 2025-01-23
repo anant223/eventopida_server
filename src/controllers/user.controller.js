@@ -1,4 +1,4 @@
-import { cloudinary as v2 } from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import User from "../models/user.model.js";
 import Like from "../models/like.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -7,18 +7,15 @@ import ApiError from "../utils/ApiError.js";
 import sendMail from "../utils/mailers.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 
-
 const generateRefreshAndAccessToken = async (userID) => {
     try {
         const user = await User.findById(userID);
-
         // Generate refresh and access tokens
-        const refreshToken = user.generateRefreshToken();
+        const  refreshToken = user.generateRefreshToken();
         const accessToken = user.generateAccessToken();
 
         // Save the refresh token in the user document
         user.refreshToken = refreshToken;
-
         await user.save({ validateBeforeSave: false });
 
         return { refreshToken, accessToken };
@@ -32,20 +29,20 @@ const generateRefreshAndAccessToken = async (userID) => {
 
 const registerUser = asyncHandler(async (req, res) => {
     // requed by user
-    const {email, password, username } = req.body;
-    
+    const { email, password, username } = req.body;
+
     // checking if user have filled the form or not
-    if ([email, password, username].some((field) => field?.trim() === "")){
+    if ([email, password, username].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
     // checking if user exsit or not
-    const existingUser = await User.findOne({$or:[{email},{username}]});
-    if (existingUser){
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
         throw new ApiError(409, "username or email already exist");
     }
 
-    // creating  new user 
-    const user = await User.create({email, password, username});
+    // creating  new user
+    const user = await User.create({ email, password, username });
 
     // selecting what to send
     const createdUser = await User.findById(user._id).select(
@@ -53,15 +50,15 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 
     const data = {
-        to : req.email,
+        to: email,
         subject: "Eventopia Confirmation",
         text: "You have successfully become part of eventopia community",
         html: "<b>You have successfully become part of the Eventopia community</b>",
-    }
+    };
 
-    const confirmationMail = await sendMail(data)
-    if(!confirmationMail){
-        throw new ApiError(500, "Somthing went worng with mailer")
+    const confirmationMail = await sendMail(data);
+    if (!confirmationMail) {
+        throw new ApiError(500, "Somthing went worng with mailer");
     }
 
     if (!createdUser) {
@@ -74,7 +71,7 @@ const registerUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(201, createdUser, "User registred successfully"));
 });
 
-const login = asyncHandler(async(req, res) =>{
+const login = asyncHandler(async (req, res) => {
     // login request
     const { username, email, password } = req.body;
 
@@ -82,38 +79,38 @@ const login = asyncHandler(async(req, res) =>{
     if (!username && !email) {
         throw new ApiError(400, "username or email required");
     }
-    
-    // Checking if user exist or not
-    const user = await User.findOne({ $or: [{ username }, {email}] });
 
-    if(!user){
+    // Checking if user exist or not
+    const user = await User.findOne({ $or: [{ username }, { email }] });
+
+    if (!user) {
         throw new ApiError(404, "Incorrect username or email");
     }
-
-
+    
     const isPasswordValid = await user.isPasswordCorrect(password);
-    
-    if(!isPasswordValid){
-        throw new ApiError(404, "Wrong Password")
+
+    if (!isPasswordValid) {
+        throw new ApiError(404, "Wrong Password");
     }
-    
-    const {refershToken, accessToken} = await generateRefreshAndAccessToken(user._id);
 
-
+    const { refreshToken, accessToken } = await generateRefreshAndAccessToken(
+        user._id
+    );
 
     const loggedInUser = await User.findById(user._id).select(
         "-password -refreshToken"
     );
 
-
     const options = {
         httpOnly: true,
-        secure: true
-    }
+        secure: true,
+        sameSite: "none",
+        path: "/",
+    };
 
     return res
         .status(200)
-        .cookie("refreshToken", refershToken, options)
+        .cookie("refreshToken", refreshToken, options)
         .cookie("accessToken", accessToken, options)
         .json(
             new ApiResponse(
@@ -125,24 +122,50 @@ const login = asyncHandler(async(req, res) =>{
                 "User logged in Successfully"
             )
         );
-})
+});
 
-const logout = asyncHandler(async(req, res) =>{
-    await User.findByIdAndUpdate(req.user._id, {
-        $unset: {
-            refershToken: 1,
-        },
-    });
-    const options = {
-        httpOnly : true,
-        secure : true
+const logout = asyncHandler(async (req, res) => {
+    try {
+        console.log("Request user:", req.user);
+
+        // Check if req.user exists
+        if (!req.user || !req.user._id) {
+            return res
+                .status(401)
+                .json(new ApiResponse(401, {}, "User not authenticated"));
+        }
+        const user = await User.findByIdAndUpdate(req.user._id, {
+            $unset: {
+                refreshToken: 1,
+            },
+        });
+
+        console.log("somthingwith user");
+        if (!user) {
+            return res
+                .status(404)
+                .json(new ApiResponse(404, {}, "User not found"));
+        }
+
+       const options = {
+           httpOnly: true,
+           secure: true, 
+           sameSite: "Strict",
+           path: "/",
+       };
+        return res
+            .status(200)
+            .clearCookie("refreshToken", options)
+            .clearCookie("accessToken", options)
+            .json(new ApiResponse(200, {}, "Logged out successfully"));
+    } catch (error) {
+        console.error("Error during logout:", error);
+        return res
+            .status(500)
+            .json(new ApiResponse(500, {}, "Internal server error"));
     }
-    return res
-        .status(200)
-        .clearCookie("refreshToken", options)
-        .clearCookie("accessToken", options)
-        .json(new ApiResponse(200, {}, "logged out successfully"));
-})
+});
+
 
 const currentUser = asyncHandler(async (req, res) => {
     return await res
@@ -150,23 +173,23 @@ const currentUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, req.user, "Here is the user"));
 });
 
-const forgetPassword = asyncHandler(async (req, res) =>{
-    const { email} = req.body
+const forgetPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
 
     // when they click the mail i get userId
-    const user = await User.findOne({email})
-    if(!user){
-        throw new ApiError(404, "Wrong email")
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(404, "Wrong email");
     }
-    
+
     const resetToken = user.generateResetToken();
-    
-    if(!resetToken){
+
+    if (!resetToken) {
         throw new ApiError(502, "JWT Token is not able to generate!");
     }
 
-    const resetLink = `${process.env.MY_PORT}/reset-password?token=${resetToken}`
-    
+    const resetLink = `${process.env.MY_PORT}/reset-password?token=${resetToken}`;
+
     const data = {
         to: email,
         subject: "Eventopia Reset Password Link",
@@ -177,40 +200,38 @@ const forgetPassword = asyncHandler(async (req, res) =>{
 
     return res
         .status(200)
-        .json(new ApiResponse(200,{} , "Reset Link was sent successfully!"))
-})
+        .json(new ApiResponse(200, {}, "Reset Link was sent successfully!"));
+});
 
 const resetPassword = asyncHandler(async (req, res) => {
-    const {token , newPassword} = req.body;
+    const { token, newPassword } = req.body;
 
-    if(!(token && newPassword)){
-        throw new ApiError(402, "new Password required")
+    if (!(token && newPassword)) {
+        throw new ApiError(402, "new Password required");
     }
 
     let veryfyToken;
     try {
-        veryfyToken = jwt.verify(token, process.env.JWT_SECRET_TOKEN); 
+        veryfyToken = jwt.verify(token, process.env.JWT_SECRET_TOKEN);
     } catch (error) {
         throw ApiError(402, "Token has been expired or invaild");
     }
 
-    const user = await User.findById(veryfyToken?._id)
+    const user = await User.findById(veryfyToken?._id);
 
-    user.password = newPassword
-    await user.save()
+    user.password = newPassword;
+    await user.save();
 
     return res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Password reset sucessfully!"))
-    
-})
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password reset sucessfully!"));
+});
 
-const refreshAccessToken = asyncHandler(async (req, res) =>{
+const refreshAccessToken = asyncHandler(async (req, res) => {
     const incommingRefreshToken =
-        req.cookies?.accessToken ||
-        req.body.accessToken;
-    if(!incommingRefreshToken){
-        throw new ApiError(401, "Unautherized request")
+        req.cookies?.accessToken || req.body.accessToken;
+    if (!incommingRefreshToken) {
+        throw new ApiError(401, "Unautherized request");
     }
     try {
         const decodedToken = jwt.veryfy(
@@ -218,153 +239,145 @@ const refreshAccessToken = asyncHandler(async (req, res) =>{
             process.env.REFRESH_TOKEN_SECRET
         );
 
-        const user = User.findById(decodedToken._id)
+        const user = User.findById(decodedToken._id);
 
-        if(!user){
-            throw new ApiError(401, "Invaild refersh token")
+        if (!user) {
+            throw new ApiError(401, "Invaild refersh token");
         }
 
-        if(incommingRefreshToken !==  user?.refershToken){
-            throw new ApiError(401, "Refreshed token is expired or used")
+        if (incommingRefreshToken !== user?.refershToken) {
+            throw new ApiError(401, "Refreshed token is expired or used");
         }
 
-        const options =  {
+        const options = {
             httpOnly: true,
-            secure: true
-        }
+            secure: true,
+        };
 
-
-
-        const { accessToken, newRefreshToken} = await generateRefreshAndAccessToken(user._id);
-
+        const { accessToken, newRefreshToken } =
+            await generateRefreshAndAccessToken(user._id);
 
         return res
-        .status(200)
-        .cookie("refreshAccessToken", newRefreshToken, options)
-        .cookie("accessToken", accessToken, options)
-        .json(
-            new ApiResponse(
-                200,
-                {
-                    accessToken,
-                    refershToken: newRefreshToken
-                }
-                ,
-                "Access Token refreshed"
-            )
-        )
+            .status(200)
+            .cookie("refreshAccessToken", newRefreshToken, options)
+            .cookie("accessToken", accessToken, options)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        accessToken,
+                        refershToken: newRefreshToken,
+                    },
+                    "Access Token refreshed"
+                )
+            );
     } catch (error) {
         throw new ApiError(401, error?.message || "Invalid refresh token");
     }
-})
+});
 
-const updateUserProfile = asyncHandler(async (req, res) =>{
-    const { bio, socialLinks } = req.body;
+const updateUserProfile = asyncHandler(async (req, res) => {
+    
+    const { name, bio, socialLinks } = req.body;
+    
     const user = await User.findById(req.user._id);
+    
+    if (!user) {
+        throw ApiError(402, "Unautherized to update profile");
+    }
+   
+    if (name) user.name = name;
+    if (bio) user.bio = bio;
 
-    if(!user){
-        throw ApiError(402, "Unautherized to update profile")
+    if(socialLinks && Array.isArray(socialLinks)){
+        socialLinks.forEach(link => {
+            if(link.platform){
+                link.platform == link.platform.toLowerCase();
+            }
+        })
+        user.socialLinks = socialLinks
     }
 
-    const avtarLocalPath = await req.file?.profileImg?.path;
-    if(!avtarLocalPath){
-        throw new ApiError(400, "Avtar file local is required!")
-    }
+    const updatedUser = await user.save();
 
-    const avatar = await uploadOnCloudinary(avtarLocalPath);
-    if(!avatar){
-        throw new ApiError(500, "Failed to upload avatar")
-    }
-
-    user.bio = bio || user.bio
-    user.socialLinks = socialLinks || user.socialLinks;
-
-    const updatedUser = await user.save()
-
-    if(!updatedUser){
-        throw ApiError(502, "Somthing went wrong while updating user profile")
+    if (!updatedUser) {
+        throw ApiError(502, "Somthing went wrong while updating user profile");
     }
 
     return res
         .status(200)
-        .json(new ApiResponse(202, updatedUser, "Profile updated successfully"));
-})
+        .json(
+            new ApiResponse(202, updatedUser, "Profile updated successfully")
+        );
+});
 
-const changePassword =   asyncHandler(async (req, res) =>{
-    const {oldPassworld, newPassword} = req.body;
+const changePassword = asyncHandler(async (req, res) => {
+    const { oldPassworld, newPassword } = req.body;
 
     const user = await User.findById(req.user?._id);
 
     const isPasswordValid = await user.isPasswordCorrect(oldPassworld);
 
-    if(!isPasswordValid){
-        throw new ApiError(401, "needed correct password")
+    if (!isPasswordValid) {
+        throw new ApiError(401, "needed correct password");
     }
-    user.password = newPassword
-    await user.save({validateBeforeSave: false})
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
 
     return res
-    .status(200)
-    .json(new ApiResponse(202, "Password changed successfully"))  
-})
-
+        .status(200)
+        .json(new ApiResponse(202, "Password changed successfully"));
+});
 
 const updateAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = await req.file?.path;
 
-    if(!avatarLocalPath){
-        throw new ApiError(401, "Avatar is missing")
+    if (!avatarLocalPath) {
+        throw new ApiError(401, "Avatar is missing");
     }
-    
     const newAvatar = await uploadOnCloudinary(avatarLocalPath);
 
-    if(!newAvatar.url){
+    if (!newAvatar.url) {
         throw new ApiError(400, "Error while uploading avatar");
     }
 
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
-            $set:{
-                profileImg : newAvatar.url
-            }
+            $set: {
+                avatar: newAvatar.url,
+            },
         },
-        {new : true}
-    ).select("-password")
-    
+        { new: true }
+    ).select("-password");
 
-    if(user.profileImg){
-        await cloudinary.uploader.destroy(user.profileImg)
+    if (user.avatar) {
+        await cloudinary.uploader.destroy(user.avatar);
     }
 
     return res
-    .status(200)
-    .json(new ApiResponse(202, user,  "Avatar updated successfully"))
+        .status(200)
+        .json(new ApiResponse(202, user, "Avatar updated successfully"));
+});
 
-})
-
-const userLikedEvents =  asyncHandler (async (req, res) =>{
-    const like =  await Like.find({likedBy: req.user._id});
-    if(!like){
-        throw ApiError(404, "No event is liked by you")
+const userLikedEvents = asyncHandler(async (req, res) => {
+    const like = await Like.find({ likedBy: req.user._id });
+    if (!like) {
+        throw ApiError(404, "No event is liked by you");
     }
-    return res
-    .status(200)
-    .json(200, like, "Events Liked by user")
-})
-
-
+    return res.status(200).json(200, like, "Events Liked by user");
+});
 
 export {
-    registerUser, 
-    login, 
-    logout, 
-    currentUser, 
-    forgetPassword, 
+    registerUser,
+    login,
+    logout,
+    currentUser,
+    forgetPassword,
     refreshAccessToken,
     updateUserProfile,
     changePassword,
     updateAvatar,
     resetPassword,
-    userLikedEvents
-}
+    userLikedEvents,
+};

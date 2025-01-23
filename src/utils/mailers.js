@@ -1,7 +1,8 @@
 import nodemailer from "nodemailer";
 
 let configOptions = {
-    host: "smtp.example.com",
+    service: "Gmail",
+    host: "smtp.gmail.com",
     port: 587,
     secure: false, 
     tls: {
@@ -15,17 +16,18 @@ const sendMail = async ({to, subject, text, html}) => {
         const transporter = nodemailer.createTransport({
             ...configOptions,
             auth: {
-                user: process.env.EMAILER,
-                pass: process.env.PASSWORD,
+                user: "workmy179@gmail.com",
+                pass: "gtvy bfhq xncq uouj",
             },
+            debug: true
         });
 
         const info = await transporter.sendMail({
-            from: `Eventopia 📧 <${process.env.SENDER_EMAIL}>`,
+            from: `Eventopia 📧 <"workmy179@gmail.com">`,
             to,
             subject,
             text,
-            html
+            html,
         });
 
         if (info.messageId) {

@@ -2,50 +2,59 @@ import asyncHandler from "../utils/asyncHandler.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import Joi from "joi"
 import Event from "../models/event.model.js";
 import User from "../models/user.model.js";
 
 
-const createEvent = asyncHandler(async (req, res) =>{
-    const user = await User.findById(req.user?._id);
+const createEvent = asyncHandler(async (req, res) => {
+
+    const { title, desc, duration, startingDate, url, eventType, tag } = req.body;
+    const thumbnail = await req.file?.path;
+    if (
+        [title, desc, duration, startingDate, url, eventType, tag].some(
+            (field) => field?.trim() === ""
+        )
+    ) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    const user = await User.findById(req.user._id);
     if (!user) {
-        throw new ApiError(400, "Unautherized to create event");
+        throw new ApiError(401, "Unauthorized to create event");
     }
-
-    const schema = Joi.object({
-        title: Joi.string().required(),
-        desc: Joi.string().required(),
-        duration: Joi.number().required(),
-        startingDate: Joi.date().required(),
-        url: Joi.string().uri().required(),
-        status: Joi.string().required(),
-        owner: Joi.string().required(),
-        eventType: Joi.string().valid("Public", "Private").required()
+    console.log(thumbnail);
+    if (!thumbnail) {
+        throw new ApiError(400, "Thumbnail image is required");
+    }
+   
+    const thumbnailImg = await uploadOnCloudinary(thumbnail);
+    if (!thumbnailImg || !thumbnailImg.url) {
+        throw new ApiError(400, "Error uploading image to cloudinary");
+    }
+    const newEvent = await Event.create({
+        title,
+        desc,
+        duration,
+        startingDate,
+        url,
+        eventType,
+        owner: req.user._id,
+        thumbnail: thumbnailImg?.url,
+        tag,
     });
-    
-    const {error, value} = schema.validate(req.body)
-    const { thumbnail } = req.file;
-
-    if (error) {
-        throw new ApiError(402, error.details[0].message);
-    }
-
-    if(!thumbnail){
-        throw new ApiError(400, "Image is required!")
-    }
-
-    const thumbnailLocalPath = await thumbnail?.path;
-
-    const thumbnailImg =  await uploadOnCloudinary(thumbnailLocalPath)
-    const cloudinaryUrl = thumbnailImg.url
-
-    const newEvent = await Event.create({...value, owner : req.user._id, cloudinaryUrl});
+    console.log("new event",newEvent);
+  
 
     return res
-    .status(200)
-    .json(new ApiResponse(200, newEvent,"Event has been created successfully!"));
-})
+        .status(201)
+        .json(
+            new ApiResponse(
+                201,
+                newEvent,
+                "Event has been created successfully!"
+            )
+        );
+});
 
 const deleteEvent = asyncHandler(async (req, res) =>{
     const event = await Event.findById(req.user?._id);
@@ -92,7 +101,15 @@ const updateEvent = asyncHandler (async (req, res) =>{
 })
 
 const allPublicEvent = asyncHandler( async (req, res) =>{
-    const { page = 1, limit = 6, query, sortBy= startingDate, sortType, userId } = req.query;
+    const { page = 1, limit = 6, sortBy, sortType } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (pageNum < 1 || limitNum < 1) {
+        throw new ApiError(400, "Invalid page or limit values");
+    }
+
 
     const publicEvent = await Event.aggregate([
         {
@@ -102,10 +119,10 @@ const allPublicEvent = asyncHandler( async (req, res) =>{
             },
         },
         {
-            $skip: (page - 1) * limit,
+            $skip: (pageNum - 1) * limitNum,
         },
         {
-            $limit: limit,
+            $limit: limitNum,
         },
         {
             $sort: {

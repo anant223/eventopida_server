@@ -1,7 +1,26 @@
 import mongoose, { Mongoose, Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { string } from "joi";
+
+const socialLinksSchema = new Schema({
+    platform: {
+        type: String,
+        trim: true,
+        enum: [
+            "twitter",
+            "linkedin",
+            "instagram",
+            "youtube",
+            "discord",
+            "other",
+        ], 
+    },
+    url: {
+        type: String,
+        trim: true,
+        match: /^https?:\/\/[^\s$.?#].[^\s]*$/i,
+    },
+});
 
 const userSchema = new Schema(
     {
@@ -28,28 +47,28 @@ const userSchema = new Schema(
             type: String,
             required: [true, "Password is required"],
         },
-        profileImg: {
+        avatar: {
             type: String,
         },
         bio: {
             type: String,
         },
-        socialLinks: {
-            linkedin: { type: String },
-            youtube: { type: String },
-            github: { type: String },
-        },
+        socialLinks: [socialLinksSchema],
         eventer: {
             type: Boolean,
             default: false,
         },
         history: {
-            attendedEvent: [{ type: mongoose.Schema.Types.ObjectId, ref: "Event" }],
-            orgnizedEvent: [{ type: mongoose.Schema.Types.ObjectId, ref: "Event" }],
+            attendedEvent: [
+                { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
+            ],
+            orgnizedEvent: [
+                { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
+            ],
         },
         eventType: {
             string: String,
-            enum: ["Public", "Private"]
+            enum: ["Public", "Private"],
         },
         refreshToken: {
             type: String,
@@ -83,7 +102,6 @@ userSchema.pre("save", async function (next) {
 
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();
-
     this.password = await bcrypt.hash(this.password, 10);
 
     next();
