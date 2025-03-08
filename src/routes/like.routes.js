@@ -2,11 +2,13 @@ import { Router } from "express";
 import {
     toggleEventLike,
     getAllLikesOnAEvent,
-} from "../controllers/Like.controller";
+    getLikedEvents
+} from "../controllers/like.controller.js";
+import JWTverify from "../middlewares/auth.middleware.js";
 
 const router = Router();
-
-router.route("/toggle/e/:eventId").post(toggleEventLike)
-router.route("/toggle/event").post(getAllLikesOnAEvent)
+router.route("/events/all").get(JWTverify, getLikedEvents);
+router.route("/events/:eventId/toggle").post(JWTverify,toggleEventLike);
+router.route("/events/:eventId").get(getAllLikesOnAEvent);
 
 export default router;

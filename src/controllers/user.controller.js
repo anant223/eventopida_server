@@ -125,45 +125,22 @@ const login = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-    try {
-        console.log("Request user:", req.user);
-
-        // Check if req.user exists
-        if (!req.user || !req.user._id) {
-            return res
-                .status(401)
-                .json(new ApiResponse(401, {}, "User not authenticated"));
-        }
-        const user = await User.findByIdAndUpdate(req.user._id, {
-            $unset: {
-                refreshToken: 1,
-            },
-        });
-
-        console.log("somthingwith user");
-        if (!user) {
-            return res
-                .status(404)
-                .json(new ApiResponse(404, {}, "User not found"));
-        }
-
-       const options = {
-           httpOnly: true,
-           secure: true, 
-           sameSite: "Strict",
-           path: "/",
-       };
-        return res
-            .status(200)
-            .clearCookie("refreshToken", options)
-            .clearCookie("accessToken", options)
-            .json(new ApiResponse(200, {}, "Logged out successfully"));
-    } catch (error) {
-        console.error("Error during logout:", error);
-        return res
-            .status(500)
-            .json(new ApiResponse(500, {}, "Internal server error"));
+    if (!req.user?._id) {
+        throw new ApiError(401, "User is not found")
     }
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "Strict",
+        path: "/",
+    };
+
+    return res
+        .status(200)
+        .clearCookie("refreshToken", options)
+        .clearCookie("accessToken", options)
+        .json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
 

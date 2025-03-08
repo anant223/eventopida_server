@@ -7,41 +7,53 @@ import ApiResponse from "../utils/ApiResponse.js"
 
 const toggleEventLike = asyncHandler( async (req, res) =>{
     const {eventId} = req.params
-    
-    const existLike = await Like.findOne({
-        event: eventId,
-        likedBy: req.user._id,
-    });
+    const existLike = await Like.findOneAndDelete(
+        {
+            eventId,
+            likedBy : req.user._id,
+            isLiked : true
+        }
+    );
     if(existLike){
-        await existLike.remove();
+        await Like.deleteOne({_id: existLike._id});
         return res
             .status(200)
             .json(new ApiResponse(200, existLike, "Event Like removed successfully"));
     }
 
-    const newLike = await Like.create({ event: eventId, likedBy : req.user._id});
+    const newLike = await Like.create({ eventId, likedBy : req.user._id, isLiked: true});
 
     return res.status(200).json(new ApiResponse(200, newLike, "Event Liked successfully"))
 })
 
-const getAllLikesOnAEvent = asyncHandler(async (req, res) =>{
-    const {eventId} = req.params
-    if(!eventId){
-        throw new ApiError(400, "event id doesn't exist")
-    }
-    const allLikes = await Like.findOne({event : eventId});
 
-    if (!allLikes || allLikes.length === 0) {
-        throw new ApiError(404, "No video found");
+const getAllLikesOnAEvent = asyncHandler(async (req, res) => {
+    const { eventId } = req.params;
+    if (!eventId) {
+        throw new ApiError(400, "event id doesn't exist");
     }
+    const allLikes = await Like.find({ eventId });
 
     return res
-    .status(200)
-    .json(new ApiResponse(200, allLikes, "This is all video liked" ))
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                allLikes,
+                "Likes for this event retrieved successfully"
+            )
+        );
+});
 
-})
+const getLikedEvents = asyncHandler(async (req, res) => {
 
-export {
-    toggleEventLike,
-    getAllLikesOnAEvent
-}
+    const allLikedEvents = await Like.find({likedBy: req.user._id}).populate("eventId");
+    const events = allLikedEvents.map((like) => like.eventId);
+
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, events, "All Liked Events"));
+});
+
+export { toggleEventLike, getAllLikesOnAEvent, getLikedEvents };
