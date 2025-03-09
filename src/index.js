@@ -1,6 +1,6 @@
 import dotenv from "dotenv"
 import connectDB from "./db/mongoose.js";
-import app from "./app.js";
+import {server} from "./app.js";
 
 dotenv.config(
     {
@@ -9,7 +9,7 @@ dotenv.config(
 )
 
 connectDB()
-.then(() => app.listen(process.env.MY_PORT, function(){
+.then(() => server.listen(process.env.MY_PORT, function(){
     console.log("⚙️  Server Running on Port : ", process.env.MY_PORT);
 }))
 
