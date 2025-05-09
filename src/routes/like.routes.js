@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
     toggleEventLike,
     getAllLikesOnAEvent,
-    getLikedEvents
+    getLikedEvents,
 } from "../controllers/like.controller.js";
 import JWTverify from "../middlewares/auth.middleware.js";
 

@@ -74,7 +74,6 @@ const registerUser = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
     // login request
     const { username, email, password } = req.body;
-
     // Checking if all fields have been filled or not.
     if (!username && !email) {
         throw new ApiError(400, "username or email required");

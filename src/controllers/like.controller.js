@@ -28,18 +28,21 @@ const toggleEventLike = asyncHandler( async (req, res) =>{
 
 
 const getAllLikesOnAEvent = asyncHandler(async (req, res) => {
+     
     const { eventId } = req.params;
     if (!eventId) {
         throw new ApiError(400, "event id doesn't exist");
     }
-    const allLikes = await Like.find({ eventId });
+    const eventLikeDetails = await Like.find({eventId});
+    const likesCount = await Like.countDocuments({ eventId });
+   
 
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                allLikes,
+                { likes: likesCount, eventLikeDetails},
                 "Likes for this event retrieved successfully"
             )
         );

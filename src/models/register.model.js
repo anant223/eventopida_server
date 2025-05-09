@@ -10,12 +10,9 @@ const registerSchema = new mongoose.Schema(
             type: Schema.Types.ObjectId,
             ref: "User",
         },
-        isSubscribed:{
-            type : Boolean,
-            default: false
-        }
     },
     { timestamps: true }
 );
+registerSchema.index({event: 1, subscriber: 1}, {unique: true})
 
 export const Register = model("Register", registerSchema);

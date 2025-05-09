@@ -22,7 +22,6 @@ const createEvent = asyncHandler(async (req, res) => {
     if (!user) {
         throw new ApiError(401, "Unauthorized to create event");
     }
-    console.log(thumbnail);
     if (!thumbnail) {
         throw new ApiError(400, "Thumbnail image is required");
     }

@@ -1,4 +1,5 @@
 import { Register } from "../models/register.model.js";
+import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
@@ -10,7 +11,6 @@ const registerEvent = asyncHandler(async (req, res) =>{
         subscriber: req.user._id,
     });
 
-    console.log(isUsersubscribered);
     if(isUsersubscribered){
         await Register.deleteOne({event: eventId ,subscriber: req.user._id})
         return res
@@ -27,7 +27,6 @@ const registerEvent = asyncHandler(async (req, res) =>{
     const newRegister = await Register.create({
         event: eventId,
         subscriber: req.user._id,
-        isSubscribed: true
     });
 
     return res.status(200).json(new ApiResponse(200, newRegister, 
@@ -35,21 +34,16 @@ const registerEvent = asyncHandler(async (req, res) =>{
      ))
 })
 
+// get all  registered events
 const getRegisteredEvents = asyncHandler(async (req, res) =>{
-    const allRegistred = await Register.find({subscriber: req.user._id}).populate("event");
-    if(!allRegistred){
-        return res
-            .status(200)
-            .json(
-                new ApiResponse(
-                    200,
-                    {},
-                    "No Registred Events"
-                )
-            );
+    if(!req.user._id){
+        throw ApiError(400, "Not Autherized to get registred Events")
     }
-    const registred = allRegistred.map((register) => register.event)
-    return res.status(200).json(new ApiResponse(200, registred, "All Registred Events"));
+    const allRegistred = await Register.find({subscriber: req.user._id}).populate("event");
+
+    return res.status(200).json(new ApiResponse(200, allRegistred, "All Registred Events"));
 })
+
+
 
 export {registerEvent, getRegisteredEvents}

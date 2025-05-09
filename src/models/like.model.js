@@ -15,5 +15,7 @@ const likeSchema = new Schema({
     }
 }, {timestamps: true});
 
+likeSchema.index({ eventId: 1, likedBy: 1}, {unique: true})
+
 const Like = model("Like", likeSchema);
 export default Like
