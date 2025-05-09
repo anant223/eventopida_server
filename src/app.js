@@ -28,10 +28,4 @@ app.use("/api/v1/register", registerRouter);
 
 
 
-
-
-
-
-
-
 export { app};
