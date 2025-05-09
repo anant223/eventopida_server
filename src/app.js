@@ -3,15 +3,13 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 const app = express();
+
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin:"https://eventopida.netlify.app",
         credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        optionSuccessStatus: 200,
     })
 );
-
 
 app.use(express.json({limit:"24kb"}))
 app.use(express.urlencoded({extended:true}))

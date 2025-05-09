@@ -100,12 +100,13 @@ const login = asyncHandler(async (req, res) => {
         "-password -refreshToken"
     );
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/",
-    };
+   const options = {
+       httpOnly: true,
+       secure: false,  
+       sameSite: "lax",
+       path: "/",
+   };
+
 
     return res
         .status(200)
