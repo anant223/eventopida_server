@@ -6,8 +6,8 @@ const app = express();
 
 app.use(
     cors({
-        origin:"https://eventopida.netlify.app",
-        credentials: true,
+        origin: "http://localhost:5173",
+        credentials: true
     })
 );
 
@@ -25,6 +25,12 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/events", eventRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/register", registerRouter);
+
+
+
+
+
+
 
 
 

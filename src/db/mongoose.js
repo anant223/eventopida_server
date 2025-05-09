@@ -4,7 +4,7 @@ import mongoose from "mongoose"
 const connectDB = async () =>{
     try {
         const connectionInstance = await mongoose.connect(
-          `${process.env.MONGODB_URI}/${DB_NAME}`
+            `${process.env.MONGODB_URI}/eventopia`
         );
         console.log("hosdf", process.env.MONGODB_URI);
         console.log(`\n✅ MongoDB Connected || DB Host : ${connectionInstance.connection.host}`);
