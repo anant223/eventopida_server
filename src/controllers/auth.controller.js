@@ -82,12 +82,13 @@ const callbackAuth = asyncHandler( async (req, res) => {
     );
 
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     const options = {
-        httpOnly: true, 
-        sameSite: "Strict", 
-        secure: true, 
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/", 
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Strict",
+        maxAge: 24 * 60 * 60 * 1000,
     };
     
 
@@ -170,14 +171,15 @@ const discordCallbackAuth = asyncHandler( async(req, res) =>{
 
         user = await User.findById(user._id).select("-refreshToken");
 
+        const isProduction = process.env.NODE_ENV === "production";
 
         const options = {
             httpOnly: true,
-            sameSite: "Strict",
-            secure: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: "/",
+            secure: isProduction,
+            sameSite: isProduction ? "None" : "Strict",
+            maxAge: 24 * 60 * 60 * 1000,
         };
+        
         
 
         return res

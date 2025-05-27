@@ -81,12 +81,13 @@ const login = asyncHandler(async (req, res) => {
         "-password -refreshToken"
     );
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     const options = {
         httpOnly: true,
-        sameSite: "Strict",
-        secure: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/",
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Strict",
+        maxAge: 24 * 60 * 60 * 1000,
     };
 
 
@@ -122,12 +123,13 @@ const logout = asyncHandler(async (req, res) => {
         }
     )
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     const options = {
         httpOnly: true,
-        sameSite: "Strict",
-        secure: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/",
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Strict",
+        maxAge: 24 * 60 * 60 * 1000,
     };
 
     return res
@@ -220,9 +222,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             throw new ApiError(401, "Refreshed token is expired or used");
         }
 
+        const isProduction = process.env.NODE_ENV === "production";
+
         const options = {
             httpOnly: true,
-            secure: true,
+            secure: isProduction,
+            sameSite: isProduction ? "None" : "Strict",
+            maxAge: 24 * 60 * 60 * 1000,
         };
 
         const { accessToken, newRefreshToken } =
