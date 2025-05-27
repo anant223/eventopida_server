@@ -129,7 +129,6 @@ const logout = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? "None" : "Strict",
-        maxAge: 24 * 60 * 60 * 1000,
     };
 
     return res

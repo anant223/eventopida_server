@@ -31,9 +31,10 @@ const googleAuth = asyncHandler((req, res) => {
     res.redirect(authUri);
 });
 
+
 const callbackAuth = asyncHandler( async (req, res) => {
     const  {code, error} = req.query;
-    if(!error){
+    if(error){
         return res.redirect(`${process.env.CLIENT_URI}/auth?type=login`);
     }
     if(!code){
@@ -83,7 +84,7 @@ const callbackAuth = asyncHandler( async (req, res) => {
 
 
     const isProduction = process.env.NODE_ENV === "production";
-
+    console.log(isProduction);
     const options = {
         httpOnly: true,
         secure: isProduction,
