@@ -6,37 +6,20 @@ import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import sendMail from "../utils/mailers.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
+import generateRefreshAndAccessToken from "../utils/genrateToken.js";
 
-const generateRefreshAndAccessToken = async (userID) => {
-    try {
-        const user = await User.findById(userID);
-        // Generate refresh and access tokens
-        const  refreshToken = user.generateRefreshToken();
-        const accessToken = user.generateAccessToken();
-
-        // Save the refresh token in the user document
-        user.refreshToken = refreshToken;
-        await user.save({ validateBeforeSave: false });
-
-        return { refreshToken, accessToken };
-    } catch (error) {
-        throw new ApiError(
-            500,
-            "Something went wrong while generating access or refresh token"
-        );
-    }
-};
 
 const registerUser = asyncHandler(async (req, res) => {
     // requed by user
     const { email, password, username } = req.body;
-    // console.log(req.body);
+    
     // checking if user have filled the form or not
     if ([email, password, username].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
     // checking if user exsit or not
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    
     if (existingUser) {
         throw new ApiError(409, "username or email already exist");
     }
@@ -80,14 +63,12 @@ const login = asyncHandler(async (req, res) => {
     }
 
     // Checking if user exist or not
-    const user = await User.findOne({ $or: [{ username }, { email }] });
-
+    const user = await User.findOne({ $or: [{ username }, { email }] }).select("+password");
     if (!user) {
         throw new ApiError(404, "Incorrect username or email");
     }
     
     const isPasswordValid = await user.isPasswordCorrect(password);
-
     if (!isPasswordValid) {
         throw new ApiError(404, "Wrong Password");
     }
@@ -100,11 +81,13 @@ const login = asyncHandler(async (req, res) => {
         "-password -refreshToken"
     );
 
-   const options = {
-       httpOnly: true,
-       secure: true,
-       sameSite: "None",
-   };
+    const options = {
+        httpOnly: true,
+        sameSite: "Strict",
+        secure: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
+    };
 
 
     return res
@@ -128,10 +111,22 @@ const logout = asyncHandler(async (req, res) => {
         throw new ApiError(401, "User is not found")
     }
 
+    await User.findByIdAndUpdate(req?.user?._id,
+        {
+            $unset :{
+                refershToken : 1
+            },
+        },
+        {
+            new: true
+        }
+    )
+
     const options = {
         httpOnly: true,
-        secure: true,
         sameSite: "Strict",
+        secure: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         path: "/",
     };
 
@@ -210,12 +205,12 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Unautherized request");
     }
     try {
-        const decodedToken = jwt.veryfy(
+        const decodedToken = jwt.verify(
             incommingRefreshToken,
             process.env.REFRESH_TOKEN_SECRET
         );
 
-        const user = User.findById(decodedToken._id);
+        const user = await User.findById(decodedToken._id);
 
         if (!user) {
             throw new ApiError(401, "Invaild refersh token");

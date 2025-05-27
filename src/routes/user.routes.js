@@ -11,6 +11,7 @@ import {
     refreshAccessToken, 
     resetPassword
 } from "../controllers/user.controller.js";
+import {googleAuth, callbackAuth, discordCallbackAuth, discordAuth} from "../controllers/auth.controller.js"
 import {upload} from "../middlewares/multer.middleware.js";
 import JWTverify from "../middlewares/auth.middleware.js";
 
@@ -19,6 +20,11 @@ const router = Router();
 router.route("/register").post(upload.none(),registerUser);
 router.route("/login").post(upload.none(), login);
 router.route("/logout").post(JWTverify, logout);
+router.route("/google/auth").get(googleAuth);
+router.route("/google/auth/callback").get(callbackAuth);
+router.route("/discord/auth").get(discordAuth);
+router.route("/discord/auth/callback").get(discordCallbackAuth);
+router.route("/current_user").get(JWTverify, currentUser);
 router.route("/forget_password").post(upload.none(),forgetPassword);
 router.route("/reset_password").post(upload.none(), resetPassword); 
 router.route("/current_user").get(JWTverify, currentUser);
