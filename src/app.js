@@ -6,7 +6,7 @@ const app = express();
 
 app.use(
     cors({
-        origin: "https://eventopida.netlify.app/",
+        origin: "https://eventopida.netlify.app",
         credentials: true,
     })
 );
