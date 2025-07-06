@@ -5,8 +5,6 @@ import { getRegisteredEvents, registerEvent } from "../controllers/register.cont
 const router = Router();
 
 router.use(JWTverify)
-
 router.route("/events/all-registred").get(getRegisteredEvents)
 router.route("/events/:eventId").post(registerEvent)
-
 export default router

@@ -1,4 +1,5 @@
 import mongoose, { model, Schema } from "mongoose";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const likeSchema = new Schema({
     eventId: {
@@ -8,10 +9,6 @@ const likeSchema = new Schema({
     likedBy:{
         type: Schema.Types.ObjectId,
         ref : "User"
-    },
-    isLiked : {
-        type: Boolean,
-        default : false
     }
 }, {timestamps: true});
 

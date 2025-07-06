@@ -34,6 +34,8 @@ const registerEvent = asyncHandler(async (req, res) =>{
      ))
 })
 
+
+
 // get all  registered events
 const getRegisteredEvents = asyncHandler(async (req, res) =>{
     if(!req.user._id){

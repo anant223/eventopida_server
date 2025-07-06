@@ -1,12 +1,33 @@
 import express from "express";
+import {createServer} from "http";
+import { Server } from "socket.io";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
+import compression from "compression";
+import { initializeSocketIO } from "./sockets/index.js";
+import { initRoomManager } from "./sockets/utils/roomManger.js";
 const app = express();
+const server = createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: process.env.CLIENT_URI,
+        methods: ["GET", "POST"],
+        credentials: true,
+    },
+});
+initRoomManager(io);
+
+
+app.use(compression());
+
+initializeSocketIO();
+
+
 
 app.use(
     cors({
-        origin: "https://eventopida.netlify.app",
+        origin: process.env.CLIENT_URI,
         credentials: true,
     })
 );
@@ -29,9 +50,4 @@ app.use("/api/v1/register", registerRouter);
 
 
 
-
-
-
-
-
-export { app};
+export { app, server, io};
