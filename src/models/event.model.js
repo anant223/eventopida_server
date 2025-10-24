@@ -1,4 +1,4 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { Mongoose, Schema, model } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const eventSchema = new Schema(
@@ -6,50 +6,89 @@ const eventSchema = new Schema(
         title: {
             type: String,
             required: true,
+            trim: true,
         },
         desc: {
             type: String,
             required: true,
+            trim: true,
         },
-        thumbnail: {
+        image: {
             type: String,
-            required : true,
-        },
-        duration: {
-            type: Number,
             required: true,
         },
-        startingDate: {
+        category: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            enum: [
+                "tech",
+                "business",
+                "health",
+                "education",
+                "entertainment",
+                "sports",
+                "other",
+            ],
+            default: "other",
+        },
+        startDateTime: {
             type: Date,
             required: true,
-            default: Date.now,
         },
-        url: {
+        endDateTime: {
+            type: Date,
+            required: true,
+        },
+        location: {
+            type: String,
+            default: "online",
+            required: true,
+        },
+        locationId: {
             type: String,
         },
-        participants: [
+        capacity: {
+            type: Number,
+        },
+        tags: [
+            {
+                type: String,
+                trim: true,
+                lowercase: true,
+            },
+        ],
+        hosts: [
             {
                 type: Schema.Types.ObjectId,
                 ref: "User",
             },
         ],
-        tag: {
-            type: String,
-            required: true
-        },
-        status: {
-            type: String,
-            enum: ["upcoming", "completed"],
-            default: "upcoming",
-        },
-        owner: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-        },
         eventType: {
             type: String,
-            enum: ["Public", "Private"]
-        }
+            enum: ["public", "private"],
+            default: "public",
+            lowercase: true,
+        },
+        ticketType: {
+            type: String,
+            enum: ["free", "paid"],
+            default: "free",
+            lowercase: true,
+        },
+        price: {
+            type: String,
+            default: 0,
+        },
+        requireApproval: {
+            type: Boolean,
+            default: false,
+        },
+        token: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
     },
     { timestamps: true }
 );

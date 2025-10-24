@@ -7,6 +7,7 @@ import ApiError from "../utils/ApiError.js";
 import sendMail from "../utils/mailers.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import generateRefreshAndAccessToken from "../utils/genrateToken.js";
+import { populate } from "dotenv";
 
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -56,6 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const login = asyncHandler(async (req, res) => {
     // login request
+    // console.log(req.body);
     const { username, email, password } = req.body;
     // Checking if all fields have been filled or not.
     if (!username && !email) {
@@ -344,6 +346,27 @@ const userLikedEvents = asyncHandler(async (req, res) => {
     return res.status(200).json(200, like, "Events Liked by user");
 });
 
+const userHistory = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id)
+        .populate({
+            path: "history.organizedEvent",
+            select: "title startDateTime hosts image",
+            populate: {
+                path: "hosts",
+                select: "name avatar"
+            },
+        })
+        .populate({
+            path: "history.attendedEvent",
+            select: "title startDateTime image hosts",
+            populate: {
+                path: "hosts",
+                select: "name avatar",
+            },
+        }); 
+    return res.status(200).json(new ApiResponse(200, user, "History fetched successfully"));
+});
+
 export {
     registerUser,
     login,
@@ -356,4 +379,5 @@ export {
     updateAvatar,
     resetPassword,
     userLikedEvents,
+    userHistory,
 };

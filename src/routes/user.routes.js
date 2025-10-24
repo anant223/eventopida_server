@@ -9,7 +9,8 @@ import {
     changePassword,
     updateAvatar,
     refreshAccessToken, 
-    resetPassword
+    resetPassword,
+    userHistory
 } from "../controllers/user.controller.js";
 import {googleAuth, callbackAuth, discordCallbackAuth, discordAuth} from "../controllers/auth.controller.js"
 import {upload} from "../middlewares/multer.middleware.js";
@@ -31,6 +32,8 @@ router.route("/current_user").get(JWTverify, currentUser);
 router.route("/update_profile").put(JWTverify,updateUserProfile);
 router.route("/change_password").put(JWTverify, changePassword);
 router.route("/update_avatar").put(JWTverify, upload.single("avatar"), updateAvatar);
+router.route("/history").get(JWTverify, userHistory);
 router.route("/referesh_access_token").put(refreshAccessToken);
+
 
 export default router;

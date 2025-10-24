@@ -55,17 +55,15 @@ const userSchema = new Schema(
             type: String,
         },
         socialLinks: [socialLinksSchema],
-        eventer: {
-            type: Boolean,
-            default: false,
-        },
         history: {
-            attendedEvent: [
-                { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
-            ],
-            orgnizedEvent: [
-                { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
-            ],
+            attendedEvent: [{
+                type: mongoose.Schema.Types.ObjectId, 
+                ref: "Event"
+            }],
+            organizedEvent: [{ 
+                type: mongoose.Schema.Types.ObjectId, 
+                ref: "Event"
+            }],
         },
         eventType: {
             type: String,
@@ -106,8 +104,6 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.isPasswordCorrect = async function(password) {
-    console.log("Comparing:", { entered: password, stored: this.password });
-
     return await bcrypt.compare(password, this.password);
 };
 

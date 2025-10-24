@@ -1,4 +1,4 @@
-import { handleLike, joinRoom } from "../sockets/handler/likeHandlers.js";
+import { handleLike, joinRoom } from "../sockets/handlers/likeHandlers.js";
 import { io } from "../app.js";
 import { authenticateSocket } from "../sockets/middlewares/socket.auth.middleware.js";
 import { checkRateLimit, stopCleanup } from "../sockets/middlewares/socket.rateLimit.middleware.js";

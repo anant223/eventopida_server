@@ -9,6 +9,7 @@ const getEventLikes = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
 
     if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
+        
         throw new ApiError(400, "Invalid event ID");
     }
 

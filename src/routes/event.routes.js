@@ -1,22 +1,24 @@
-    import { Router } from "express";
-    import {
-        createEvent,
-        deleteEvent,
-        updateEvent,
-        allPublicEvent,
-        allPrivateEvent,
-        findEventById,
-    } from "../controllers/event.controller.js";
-    import { upload } from "../middlewares/multer.middleware.js";
-    import JWTverify from "../middlewares/auth.middleware.js";
+import { Router } from "express";
+import {
+    createEvent,
+    deleteEvent,
+    updateEvent,
+    allPublicEvent,
+    getPrivateEvent,
+    findEventById,
+} from "../controllers/event.controller.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import JWTverify from "../middlewares/auth.middleware.js";
 
     const router = Router();
+    
+    router.route("/public").get(allPublicEvent);
+    router.route("/private/:eventId/:token").get(getPrivateEvent);
 
-    router.route("/create-event").post(JWTverify, upload.single("thumbnail"), createEvent);
-    router.route("/delete-event").get(JWTverify, deleteEvent);
-    router.route("/update-event").put(JWTverify, updateEvent);
-    router.route("/all-public-event").get(JWTverify, allPublicEvent);
-    router.route("/all-private-event").get(JWTverify, allPrivateEvent);
-    router.route("/find-event-by-id").get(JWTverify, findEventById);
+    router.route("/create").post(JWTverify, upload.single("image"), createEvent);
+    router.route("/:eventId").delete(JWTverify, deleteEvent);
+    router.route("/:eventId").put(JWTverify, updateEvent);
+    router.route("/:eventId").get(JWTverify, findEventById);
+
 
 export default router;
