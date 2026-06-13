@@ -4,11 +4,21 @@ import { Server } from "socket.io";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import compression from "compression";
+import Stripe from "stripe"
 import { initializeSocketIO } from "./sockets/index.js";
-import { initRoomManager } from "./sockets/utils/roomManger.js";
+import { paymentWebhook } from "./controllers/webhook.controller.js";
+
 
 const app = express();
 const server = createServer(app);
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2023-10-16",
+    appInfo: {
+        name: "Grupio"
+    }
+});
+
 
 const io = new Server(server, {
     cors: {
@@ -17,12 +27,11 @@ const io = new Server(server, {
         credentials: true,
     },
 });
-initRoomManager(io);
 
 
 app.use(compression());
 
-initializeSocketIO();
+initializeSocketIO(io);
 
 
 app.use(
@@ -32,8 +41,17 @@ app.use(
     })
 );
 
-app.use(express.json({limit:"24kb"}))
-app.use(express.urlencoded({extended:true}))
+
+app.post(
+    "/api/v1/payments/webhook",
+    express.raw({ type: "application/json" }),
+    paymentWebhook
+);
+
+
+
+app.use(express.json({limit:"24kb"}));
+app.use(express.urlencoded({extended:true}));
 app.use(express.static("public"));
 app.use(cookieParser());
 
@@ -42,14 +60,26 @@ import eventRouter from "./routes/event.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import registerRouter from "./routes/register.routes.js";
 import locationRouter from "./routes/location.routes.js";
+import pyamentRouter from "./routes/payment.routes.js";
+import bookingRouter from "./routes/booking.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
+import categoryRouter from "./routes/category.routes.js";
+import onBoardingRouter from "./routes/stripeOnboarding.routes.js"
+import waitlistRouter from "./routes/waitlist.routes.js"
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/events", eventRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/register", registerRouter);
 app.use("/api/v1/google", locationRouter);
+app.use("/api/v1/payments", pyamentRouter);
+app.use("/api/v1/booking", bookingRouter)
+app.use("/api/v1/notification", notificationRouter);
+app.use("/api/v1/category", categoryRouter)
+app.use("/api/v1/stripe", onBoardingRouter);
+app.use("/api/v1/waitlist", waitlistRouter);
 
 
 
 
-export { app, server, io};
+export { app, server, io, stripe};
