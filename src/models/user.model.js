@@ -1,4 +1,4 @@
-import mongoose, { Mongoose, Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -6,27 +6,32 @@ const socialLinksSchema = new Schema({
     platform: {
         type: String,
         trim: true,
+        lowercase: true,
         enum: [
             "twitter",
             "linkedin",
             "instagram",
             "youtube",
             "discord",
-            "other",
+            "website",
+            "other"
         ], 
     },
     url: {
         type: String,
         trim: true,
-        match: /^https?:\/\/[^\s$.?#].[^\s]*$/i,
+        maxlength: 300,
+        match: [                 
+            /^https?:\/\/.+/,
+            "URL must start with http:// or https://"
+        ]
     },
-});
+}, {_id: false});
 
 const userSchema = new Schema(
     {
         username: {
             type: String,
-            required: true,
             unique: true,
             lowercase: true,
             trim: true,
@@ -46,7 +51,7 @@ const userSchema = new Schema(
         password: {
             type: String,
             required: false,
-            select: false
+            select: false,
         },
         avatar: {
             type: String,
@@ -55,19 +60,86 @@ const userSchema = new Schema(
             type: String,
         },
         socialLinks: [socialLinksSchema],
+        interests: [
+            {
+                type: String,
+                lowercase: true,
+                trim: true,
+            },
+        ],
+        preferredCategories: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Category",
+            },
+        ],
+
         history: {
-            attendedEvent: [{
-                type: mongoose.Schema.Types.ObjectId, 
-                ref: "Event"
-            }],
-            organizedEvent: [{ 
-                type: mongoose.Schema.Types.ObjectId, 
-                ref: "Event"
-            }],
+            attendedEvent: [
+                {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Event",
+                },
+            ],
+            organizedEvent: [
+                {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Event",
+                },
+            ],
+        },  
+        onboardingCompleted: {
+            type: Boolean,
+            default: false,
         },
-        eventType: {
+        notificationPreferences: {
+            eventCreated: {
+                type: Boolean,
+                default: true,
+            },
+            eventInvite: {
+                type: Boolean,
+                default: true,
+            },
+            coHostAdded: {
+                type: Boolean,
+                default: true,
+            },
+            eventReminder: {
+                type: Boolean,
+                default: true,
+            },
+            eventCancelled: {
+                type: Boolean,
+                default: true,
+            },
+        },
+        location: {
+            type: {
+                type: String,
+                enum: ["Point"],
+                default: "Point",
+            },
+            coordinates: {
+                type: [Number], 
+            },
+            city: {
+                type: String,
+            },
+            country: {
+                type: String,
+            },
+            formattedAddress: String,
+            placeId: String,
+        },
+
+        accountId: {
             type: String,
-            enum: ["Public", "Private"],
+            default: null,
+        },
+        stripeOnboardingCompleted: {
+            type: Boolean,
+            default: false,
         },
         refreshToken: {
             type: String,
@@ -82,7 +154,7 @@ userSchema.pre("save", async function (next) {
     let User = this.constructor;
 
     if(!this.username){
-        baseUserName = this.email.split("@")[0];
+        let baseUserName = this.email.split("@")[0];
         let uniqueUserName = baseUserName;
         let counter = 1;
 
@@ -130,7 +202,6 @@ userSchema.methods.generateRefreshToken = function () {
         process.env.REFRESH_TOKEN_SECRET, 
         process.env.REFRESH_TOKEN_EXPIRY
     );
-
 };
 
 userSchema.methods.generateAccessToken = function () {
