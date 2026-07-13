@@ -7,13 +7,13 @@ import Event from "../models/event.model.js";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
-import { 
-    sendCoHostsNotification, 
-    sendInvitedUserNotification, 
-    sendPublicEventNotification } 
-from "../sockets/utils/notifications.js";
-import {safeNotify} from "../utils/index.js"
-import {io} from "../app.js"
+// import { 
+//     sendCoHostsNotification, 
+//     sendInvitedUserNotification, 
+//     sendPublicEventNotification } 
+// from "../sockets/utils/notifications.js";
+// import {safeNotify} from "../utils/index.js"
+// import {io} from "../app.js"
 
 
 const createEvent = asyncHandler(async (req, res) => {
@@ -177,11 +177,11 @@ const coHosts = asyncHandler(async (req, res) => {
 
     await event.save();
 
-    safeNotify(
-        () =>
-        sendCoHostsNotification(io, { event, creator, newHosts, message }),
-        "sendCoHostsNotification"
-    );
+    // safeNotify(
+    //     () =>
+    //     sendCoHostsNotification(io, { event, creator, newHosts, message }),
+    //     "sendCoHostsNotification"
+    // );
 
     return res
         .status(200)
@@ -247,10 +247,10 @@ const privateUserInvitations = asyncHandler(async (req, res) => {
 
     await event.save();
 
-    safeNotify(
-        () => sendInvitedUserNotification(io, { event, inviter, message }),
-        "sendInvitedUserNotification"
-    );
+    // safeNotify(
+    //     () => sendInvitedUserNotification(io, { event, inviter, message }),
+    //     "sendInvitedUserNotification"
+    // );
 
     return res
         .status(200)
@@ -282,10 +282,10 @@ const activeEvent = asyncHandler(async (req, res) => {
     event.status = "active";
     await event.save();
 
-    safeNotify(
-        () => sendPublicEventNotification(io, event, req.user),
-        "sendPublicEventNotification"
-    );
+    // safeNotify(
+    //     () => sendPublicEventNotification(io, event, req.user),
+    //     "sendPublicEventNotification"
+    // );
     return res
         .status(202)
         .json(new ApiResponse(202, event, "Event is now live"));
@@ -349,10 +349,10 @@ const cancelEvent = asyncHandler(async (req, res) => {
 
     event.status === "cancelled"
 
-    safeNotify(
-        () => sendEventCancelledNotification(io, event),
-        "sendEventCancelledNotification"
-    );
+    // safeNotify(
+    //     () => sendEventCancelledNotification(io, event),
+    //     "sendEventCancelledNotification"
+    // );
 
     return res.status(200).json(new ApiResponse(200, event, "The event is cancelled successfully"))
 
@@ -486,10 +486,10 @@ const updateEvent = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    safeNotify(
-        () => updateEventNotification(io, updatedEvent),
-        "updateEventNotification"
-    );
+    // safeNotify(
+    //     () => updateEventNotification(io, updatedEvent),
+    //     "updateEventNotification"
+    // );
     return res
         .status(200)
         .json(
