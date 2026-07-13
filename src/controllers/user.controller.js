@@ -8,7 +8,7 @@ import sendMail from "../utils/mailers.js";
 import { uploadOnCloudinary, extractCloudinaryId } from "../utils/cloudinary.js";
 import {generateRefreshAndAccessToken, generateToken} from "../utils/genrateToken.js";
 // import { stripe } from "../app.js";
-import { safeNotify } from "../utils/index.js";
+// import { safeNotify } from "../utils/index.js";
 import { createWelcomeMessage, onboardingUserNotification, stripeOnboardingNotification } from "../sockets/utils/notifications.js";
 import  Category  from "../models/category.model.js";
 import mongoose from "mongoose";
@@ -64,7 +64,7 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Somthing went worng with mailer");
     }
 
-    safeNotify(() => createWelcomeMessage(user))
+    // safeNotify(() => createWelcomeMessage(user))
 
     return res
         .status(200)
@@ -480,7 +480,7 @@ const onboardingUser = asyncHandler(async (req, res) => {
         { new: true, runValidators: true }
     );
 
-    safeNotify(() => onboardingUserNotification(updatedUser));
+    // safeNotify(() => onboardingUserNotification(updatedUser));
 
     return res
         .status(202)
