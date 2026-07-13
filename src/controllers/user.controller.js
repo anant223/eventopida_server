@@ -605,14 +605,12 @@ const changeEmail = asyncHandler (async (req, res) => {
 
 const emailUpdateConfirmation = asyncHandler (async (req, res) => {
     const { token } = req.query;
-    console.log("token received:", token);
     if (!token) {
         throw new ApiError(400, "Token is required");
     }
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-    console.log("hashedToken:", hashedToken);
 
     const verificationRequest = await VerificationToken.findOne({
         token: hashedToken,
@@ -620,7 +618,6 @@ const emailUpdateConfirmation = asyncHandler (async (req, res) => {
         expiry: { $gt: Date.now() },
     });
 
-    console.log("verificationRequest:", verificationRequest);
 
     if (!verificationRequest)
         throw new ApiError(400, "Token is invalid or expired");
