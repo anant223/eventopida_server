@@ -8,8 +8,6 @@ import sendMail from "../utils/mailers.js";
 import { uploadOnCloudinary, extractCloudinaryId } from "../utils/cloudinary.js";
 import {generateRefreshAndAccessToken, generateToken} from "../utils/genrateToken.js";
 // import { stripe } from "../app.js";
-// import { safeNotify } from "../utils/index.js";
-import { createWelcomeMessage, onboardingUserNotification, stripeOnboardingNotification } from "../sockets/utils/notifications.js";
 import  Category  from "../models/category.model.js";
 import mongoose from "mongoose";
 import { VerificationToken } from "../models/VerificationToken.model.js";
