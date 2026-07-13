@@ -10,7 +10,7 @@ import {generateRefreshAndAccessToken, generateToken} from "../utils/genrateToke
 // import { stripe } from "../app.js";
 import  Category  from "../models/category.model.js";
 import mongoose from "mongoose";
-import { VerificationToken } from "../models/VerificationToken.model.js";
+import { VerificationToken } from "../models/verificationToken.model.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
