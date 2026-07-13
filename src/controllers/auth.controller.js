@@ -6,7 +6,7 @@ import query from "querystring";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import User from "../models/user.model.js";
-import generateRefreshAndAccessToken from "../utils/genrateToken.js";
+import {generateRefreshAndAccessToken} from "../utils/genrateToken.js";
 import { URLSearchParams } from "url";
 
 
@@ -84,7 +84,6 @@ const callbackAuth = asyncHandler( async (req, res) => {
 
 
     const isProduction = process.env.NODE_ENV === "production";
-    console.log(isProduction);
     const options = {
         httpOnly: true,
         secure: isProduction,
@@ -92,7 +91,6 @@ const callbackAuth = asyncHandler( async (req, res) => {
         maxAge: 24 * 60 * 60 * 1000,
     };
     
-
 
     return res
         .status(200)
