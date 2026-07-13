@@ -31,7 +31,7 @@ const sendMail = async ({to, subject, text, html}) => {
         });
 
         if (info.messageId) {
-            console.log("Message sent successfully:", info.messageId);
+            // console.log("Message sent successfully:", info.messageId);
             return "Message sent successfully";
         } else {
             return "Something went wrong with mailer";

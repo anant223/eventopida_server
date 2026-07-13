@@ -10,13 +10,18 @@ import fs from "fs/promises";
 //     apiSecret: !!process.env.CLOUDINARY_API_SECRET,
 // });
 
+// cloudinary.config({
+//     cloud_name: "dsptomo3q",
+//     api_key: "518218992571839",
+//     api_secret: "bESS-9ChFXgX4uhCLkIPa058mg0",
+// });
 cloudinary.config({
-    cloud_name: "dsptomo3q",
-    api_key: "518218992571839",
-    api_secret: "bESS-9ChFXgX4uhCLkIPa058mg0",
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (filePath) => {
+export const uploadOnCloudinary = async (filePath) => {
     try {
 
         if (!filePath) {
@@ -57,4 +62,21 @@ const uploadOnCloudinary = async (filePath) => {
     }
 };
 
-export default uploadOnCloudinary;
+
+ export const extractCloudinaryId = async (url) => {
+    try {
+        const splitedURL = url.split("/");
+        const indexof = splitedURL.indexOf("upload");
+        if (indexof === -1) {
+            throw Error("Invalid Cloudinary URL");
+        }
+        const idVidExt = splitedURL.slice(indexof + 2).join("/");
+
+        const cloudinaryId = idVidExt.substring(0, idVidExt.lastIndexOf("."));
+        return cloudinaryId;
+    } catch (error) {
+        console.error("Error extracting public_id:", error);
+        return null;
+    }
+};
+
