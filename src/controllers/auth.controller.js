@@ -9,7 +9,6 @@ import User from "../models/user.model.js";
 import {generateRefreshAndAccessToken} from "../utils/genrateToken.js";
 import { URLSearchParams } from "url";
 
-
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -17,7 +16,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 
-
+    
 const googleAuth = asyncHandler((req, res) => {
     const authUri = oauth2Client.generateAuthUrl({
         scope: [
@@ -26,8 +25,9 @@ const googleAuth = asyncHandler((req, res) => {
         ],
         access_type: "offline",
         prompt: "consent",
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
     });
+    console.log("GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI)
+    console.log("AUTH URL:", authUri)
     res.redirect(authUri);
 });
 
@@ -42,7 +42,10 @@ const callbackAuth = asyncHandler( async (req, res) => {
     }
 
     // exchange code for tokens
-    const { tokens } = await oauth2Client.getToken(code);
+    const { tokens } = await oauth2Client.getToken({
+        code,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    });
     oauth2Client.setCredentials(tokens);
 
     // Get user info from Google
