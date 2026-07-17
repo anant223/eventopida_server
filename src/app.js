@@ -67,7 +67,7 @@ import locationRouter from "./routes/location.routes.js";
 // import pyamentRouter from "./routes/payment.routes.js";
 // import bookingRouter from "./routes/booking.routes.js";
 // import notificationRouter from "./routes/notification.routes.js";
-// import categoryRouter from "./routes/category.routes.js";
+import categoryRouter from "./routes/category.routes.js";
 // import onBoardingRouter from "./routes/stripeOnboarding.routes.js"
 import waitlistRouter from "./routes/waitlist.routes.js"
 import otherRouter from "./routes/other.routes.js";
@@ -82,7 +82,7 @@ app.use("/api/v1/other", otherRouter);
 // app.use("/api/v1/payments", pyamentRouter);
 // app.use("/api/v1/booking", bookingRouter)
 // app.use("/api/v1/notification", notificationRouter);
-// app.use("/api/v1/category", categoryRouter)
+app.use("/api/v1/category", categoryRouter)
 // app.use("/api/v1/stripe", onBoardingRouter);
 app.use("/api/v1/waitlist", waitlistRouter);
 

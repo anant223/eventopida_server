@@ -407,6 +407,7 @@ const userHistory = asyncHandler(async (req, res) => {
 
 const onboardingUser = asyncHandler(async (req, res) => {
     const { interests = [], location, preferredCategories } = req.body;
+    console.log(req.body)
 
     const user = await User.findById(req.user._id).select(
         "onboardingCompleted"
@@ -416,17 +417,14 @@ const onboardingUser = asyncHandler(async (req, res) => {
     }
 
     if (user.onboardingCompleted) {
-        return res
-            .status(200)
-            .json(
-                new ApiResponse(
-                    200,
-                    null,
-                    "Onboarding already completed. Update your preferences in profile settings."
-                )
-            );
+        throw new ApiError(
+            400,
+            "Onboarding already completed. Update your preferences in profile settings."
+        );
+        
     }
 
+    
     const uniqueInterests = [
         ...new Set(
             interests
@@ -449,7 +447,7 @@ const onboardingUser = asyncHandler(async (req, res) => {
                 .filter(Boolean)
         ),
     ];
-
+    console.log(uniqueInterests.length)
     const totalCount =
         uniqueInterests.length + uniquePreferredCategories.length;
 
