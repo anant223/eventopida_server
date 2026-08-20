@@ -7,6 +7,12 @@ import Event from "../models/event.model.js";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
+import { fetchTicketmasterEvents } from "../utils/fetchTicketmasterEvents.js";
+import countries from "i18n-iso-countries";
+import en from "i18n-iso-countries/langs/en.json" with { type: "json" };
+import axios from "axios";
+import { response } from "express";
+countries.registerLocale(en);
 // import { 
 //     sendCoHostsNotification, 
 //     sendInvitedUserNotification, 
@@ -29,11 +35,16 @@ const createEvent = asyncHandler(async (req, res) => {
         ticketType,
         price,
         requireApproval,
-        locationId,
+        eventMode,
+        online,
+        status
     } = req.body;
+    // console.log("req", req.body)
 
     const thumbnail = req.file?.path;
     let tags = req.body.tags;
+
+
 
     if (!title?.trim() || !desc?.trim()) {
         throw new ApiError(400, "Title and description are required");
@@ -43,13 +54,15 @@ const createEvent = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Thumbnail is required");
     }
 
+    const validStatuses = ["draft", "active"]
+    if (!validStatuses.includes(status)) {
+        throw new ApiError(400, "Invalid status");
+    }
+
     if (typeof tags === "string") {
         tags = tags.split(",").map((tag) => tag.trim());
     }
 
-    if (!Array.isArray(tags) || tags.length === 0) {
-        throw new ApiError(400, "At least one tag is required");
-    }
 
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
@@ -65,6 +78,26 @@ const createEvent = asyncHandler(async (req, res) => {
 
     if (startDate < now) {
         throw new ApiError(400, "Start date/time cannot be in the past");
+    }
+
+    const validModes = ["in_person", "online", "hybrid"];
+    if (!validModes.includes(eventMode)) {
+        throw new ApiError(400, "Invalid event mode");
+    }
+
+    if ((eventMode === "in_person" || eventMode === "hybrid") && !location?.address) 
+    {
+        throw new ApiError(
+            400,
+            "Venue address is required for in-person or hybrid events"
+        );
+    }
+
+    if ((eventMode === "online" || eventMode === "hybrid") && !online?.link) {
+        throw new ApiError(
+            400,
+            "Online link is required for online or hybrid events"
+        );
     }
 
     const user = await User.findById(req.user._id);
@@ -92,6 +125,7 @@ const createEvent = asyncHandler(async (req, res) => {
     if (!thumbnailImg?.url) {
         throw new ApiError(500, "Error uploading image to Cloudinary");
     }
+    let normalizeLocation = parseLocation(location);
 
     const eventData = {
         title,
@@ -99,7 +133,8 @@ const createEvent = asyncHandler(async (req, res) => {
         category,
         startDateTime,
         endDateTime,
-        location,
+        location: eventMode === "online" ? null : normalizeLocation,
+        online: eventMode === "in_person" ? null : online,
         capacity,
         tags,
         organizerId: req.user._id,
@@ -108,15 +143,21 @@ const createEvent = asyncHandler(async (req, res) => {
         price: ticketType === "paid" ? price : 0,
         requireApproval,
         image: thumbnailImg.url,
-        locationId,
-        status: "draft",
+        status,
+        eventMode,
     };
+
 
     if (eventType === "private") {
         eventData.token = crypto.randomUUID();
     }
-
-    const newEvent = await Event.create(eventData);
+    let newEvent;
+    try {
+        newEvent = await Event.create(eventData);
+    } catch (error) {
+        await cloudinary.uploader.destroy(thumbnailImg.public._id)
+        throw new ApiError(500, "Failed to create event");
+    }
 
     return res
         .status(201)
@@ -128,7 +169,33 @@ const createEvent = asyncHandler(async (req, res) => {
             )
         );
 });
+const activeEvent = asyncHandler(async (req, res) => {
+    const { eventId } = req.params;
 
+    const event = await Event.findOne({
+        _id: eventId,
+        organizerId: req.user._id,
+    });
+
+    if (!event) {
+        throw new ApiError(404, "Event not found or not authorized");
+    }
+
+    if (event.status !== "draft") {
+        throw new ApiError(400, "Only draft events can be activated");
+    }
+
+    event.status = "active";
+    await event.save();
+
+    // safeNotify(
+    //     () => sendPublicEventNotification(io, event, req.user),
+    //     "sendPublicEventNotification"
+    // );
+    return res
+        .status(202)
+        .json(new ApiResponse(202, {status: event.status}, "Event is now live"));
+});
 
 const coHosts = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
@@ -148,9 +215,7 @@ const coHosts = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Event not found or not authorized");
     }
 
-    if (event.status !== "draft") {
-        throw new ApiError(403, "Co-hosts can't be added after publishing");
-    }
+   
 
     const verifiedHosts = await User.find({
         _id: { $in: hosts },
@@ -263,34 +328,6 @@ const privateUserInvitations = asyncHandler(async (req, res) => {
         );
 });
 
-const activeEvent = asyncHandler(async (req, res) => {
-    const { eventId } = req.params;
-
-    const event = await Event.findOne({
-        _id: eventId,
-        organizerId: req.user._id,
-    });
-
-    if (!event) {
-        throw new ApiError(404, "Event not found or not authorized");
-    }
-
-    if (event.status !== "draft") {
-        throw new ApiError(400, "Only draft events can be activated");
-    }
-
-    event.status = "active";
-    await event.save();
-
-    // safeNotify(
-    //     () => sendPublicEventNotification(io, event, req.user),
-    //     "sendPublicEventNotification"
-    // );
-    return res
-        .status(202)
-        .json(new ApiResponse(202, event, "Event is now live"));
-});
-
 const acceptOrDeclineInvitation = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
     const { action } = req.body;
@@ -399,7 +436,12 @@ const updateEvent = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Unauthorized to update");
     }
 
-    // if(new Date(event.startDate) < new Date()) throw new ApiError(402, "expired event can't be updated!")
+    const eventDate = new Date(event.startDateTime)
+    const now = new Date()
+
+    if (eventDate < now) {
+        throw new ApiError(400, "Past events can't be updated");
+    }
 
     const {
         title,
@@ -414,9 +456,13 @@ const updateEvent = asyncHandler(async (req, res) => {
         ticketType,
         price,
         requireApproval,
-        locationId
     } = req.body;
 
+    let locationUpdate;
+    if (location) {
+        // console.log("location", location);
+        locationUpdate = parseLocation(location);
+    }
 
     if (!title?.trim()) {
         throw new ApiError(400, "Title can't be empty");
@@ -431,7 +477,6 @@ const updateEvent = asyncHandler(async (req, res) => {
         : event.startDateTime;
     const endDate = endDateTime ? new Date(endDateTime) : event.endDateTime;
 
-    const now = new Date();
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         throw new ApiError(400, "Invalid date format");
@@ -462,16 +507,13 @@ const updateEvent = asyncHandler(async (req, res) => {
         ...(category && { category }),
         ...(startDateTime && { startDateTime: startDate }),
         ...(endDateTime && { endDateTime: endDate }),
-        ...(location.address && {"location.address": location.address}),
-        ...(location.lat !== undefined && {"location.lat": location.lat}),
-        ...(location.lng !== undefined && {"location.lng": location.lng}),
+        ...(locationUpdate && { location: locationUpdate }),
         ...(capacity !== undefined && { capacity }),
         ...(tags && { tags }),
         ...(eventType && { eventType }),
         ...(ticketType && { ticketType }),
         ...(price !== undefined && { price }),
         ...(requireApproval !== undefined && { requireApproval }),
-        ...(locationId && {locationId})
     };
 
     if (eventType === "private" && !event.token) {
@@ -497,152 +539,146 @@ const updateEvent = asyncHandler(async (req, res) => {
         );
 });
 
-const allPublicEvent = asyncHandler(async (req, res) => {
+
+
+const getLivesEventsPreview = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
     const {
-        page = 1,
-        limit = 10,
-        sortBy = "startDateTime",
-        sortType = "asc", 
-        category = "all",
+        lat: queryLat,
+        lng: queryLng,
+        page,
+        size,
+        radius,
+        category,
     } = req.query;
+    let sortBy = "startDateTime"
+    let sortType = "asc"
+
+    const { country, city, coordinates: userCoordinates } = user.location;
 
     const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const limitNum = parseInt(size);
 
-    if (pageNum < 1 || limitNum < 1) {
-        throw new ApiError(400, "Invalid page or limit values");
+    const countryCode =
+        (country && countries.getAlpha2Code(country, "en")) || "US";
+
+    const lat = queryLat ? parseFloat(queryLat) : userCoordinates?.[1];
+    const lng = queryLng ? parseFloat(queryLng) : userCoordinates?.[0];
+
+    if (!lat || !lng) {
+        throw new ApiError(400, "Location coordinates are required");
     }
 
-    const matchStage = {
-        eventType: "public",
-        ...(category !== "all" && { category }),
-    };
+    const radiusMeters = radius ? parseInt(radius) * 1000 : 50000;
+    const fetchSize = pageNum * limitNum;
 
-    const result = await Event.aggregate([
-        {
-            $match: matchStage,
-        },
-        {
-            $facet: {
-                events: [
-                    {
-                        $sort: { [sortBy]: sortType === "asc" ? 1 : -1 },
+    const [ticketmasterResult, grupioResult] = await Promise.allSettled([
+        fetchTicketmasterEvents({
+            countryCode,
+            city,
+            limitNum,
+            query: {
+                lat,
+                lng,
+                radius,
+                pageNum,
+                fetchSize,
+                sortBy,
+                sortType
+            },
+        }),
+        Event.aggregate([
+            {
+                $geoNear: {
+                    near: { type: "Point", coordinates: [lng, lat] },
+                    distanceField: "distance",
+                    maxDistance: radiusMeters,
+                    spherical: true,
+                    query: {
+                        status: "active",
+                        eventType: "public",
+                        startDateTime: { $gte: new Date() },
+                        eventMode: { $in: ["in_person", "hybrid"] },
                     },
-                    {
-                        $skip: (pageNum - 1) * limitNum,
-                    },
-                    {
-                        $limit: limitNum,
-                    },
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "organizerId",
-                            foreignField: "_id",
-                            pipeline: [
-                                {
-                                    $project: {
-                                        name: 1,
-                                        email: 1,
-                                        avatar: 1,
-                                    },
-                                },
-                            ],
-                            as: "organizer",
-                        },
-                    },
-                    {
-                        $unwind: {
-                            path: "$organizer",
-                            preserveNullAndEmptyArrays: true,
-                        },
-                    },
-                    {
-                        $addFields: {
-                            acceptedHostIds: {
-                                $map: {
-                                    input: {
-                                        $filter: {
-                                            input: "$hosts",
-                                            cond: {
-                                                $eq: [
-                                                    "$$this.status",
-                                                    "accepted",
-                                                ],
-                                            },
-                                        },
-                                    },
-                                    as: "host",
-                                    in: "$$host.userId",
-                                },
+                },
+            },
+            {
+                $facet: {
+                    events: [
+                        { $sort: { [sortBy]: sortType === "asc" ? 1 : -1 } },
+                        { $limit: fetchSize },
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "organizerId",
+                                foreignField: "_id",
+                                pipeline: [
+                                    { $project: { name: 1, avatar: 1 } },
+                                ],
+                                as: "organizer",
                             },
                         },
-                    },
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "acceptedHostIds",
-                            foreignField: "_id",
-                            pipeline: [
-                                {
-                                    $project: {
-                                        name: 1,
-                                        email: 1,
-                                        avatar: 1,
-                                        username: 1,
-                                    },
+                        {
+                            $unwind: {
+                                path: "$organizer",
+                                preserveNullAndEmptyArrays: true,
+                            },
+                        },
+                        {
+                            $project: {
+                                title: 1,
+                                category: 1,
+                                mode: 1,
+                                startDateTime: 1,
+                                endDateTime: 1,
+                                location: 1,
+                                tags: 1,
+                                eventType: 1,
+                                ticketType: 1,
+                                price: 1,
+                                currency: 1,
+                                status: 1,
+                                image: 1,
+                                createdAt: 1,
+                                distance: 1,
+                                organizer: {
+                                    name: "$organizer.name",
+                                    avatar: "$organizer.avatar",
                                 },
-                            ],
-                            as: "coHosts",
+                                source: { $literal: "grupio" },
+                            },
                         },
-                    },
-                    {
-                        $project: {
-                            title: 1,
-                            desc: 1,
-                            category: 1,
-                            startDateTime: 1,
-                            endDateTime: 1,
-                            location: 1,
-                            capacity: 1,
-                            tags: 1,
-                            eventType: 1,
-                            ticketType: 1,
-                            price: 1,
-                            requireApproval: 1,
-                            image: 1,
-                            createdAt: 1,
-                            organizerId: "$organizer",
-                            hosts: "$coHosts",
-                        },
-                    },
-                ],
-                totalCount: [
-                    {
-                        $count: "count",
-                    },
-                ],
+                    ],
+                    totalCount: [{ $count: "count" }],
+                },
             },
-        },
+        ]),
     ]);
+   let grupioEvents = [];
+   let ticketmasterEvents = [];
+   let totalCount = 0;
 
-    const publicEvents = result[0]?.events || [];
-    const totalCount = result[0]?.totalCount[0]?.count || 0;
+   if (grupioResult.status === "fulfilled" && grupioResult.value) {
+       grupioEvents = grupioResult.value[0]?.events || [];
+       totalCount += grupioResult.value[0]?.totalCount[0]?.count || 0;
+   } else {
+       console.error("Grupio fetch failed:", grupioResult.reason);
+   }
+
+   if (ticketmasterResult.status === "fulfilled" && ticketmasterResult.value) {
+       ticketmasterEvents = ticketmasterResult.value.events || [];
+       totalCount += ticketmasterResult.value.totalCount || 0;
+   } else {
+       console.error("Ticketmaster fetch failed:", ticketmasterResult.reason);
+   }
+
+   const allEvents = [...grupioEvents, ...ticketmasterEvents];
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            {
-                events: publicEvents,
-                pagination: {
-                    currentPage: pageNum,
-                    limit: limitNum,
-                    totalCount: totalCount,
-                    totalPages: Math.ceil(totalCount / limitNum),
-                    hasNextPage: pageNum < Math.ceil(totalCount / limitNum),
-                    hasPrevPage: pageNum > 1,
-                },
-            },
+            { events: allEvents, length: allEvents.length },
+
             "All public events retrieved successfully!"
         )
     );
@@ -741,14 +777,14 @@ const findEventById = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, event, "event found successfully"));
+        .json(new ApiResponse(200, event[0], "event found successfully"));
 });
 
 export {
     createEvent,
     deleteEvent,
     updateEvent,
-    allPublicEvent,
+    getLivesEventsPreview,
     getPrivateEvent,
     findEventById,
     coHosts,
