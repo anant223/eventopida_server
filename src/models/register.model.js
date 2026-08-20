@@ -1,18 +1,25 @@
-import mongoose, {Schema, model} from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
 
-const registerSchema = new mongoose.Schema(
+const eventRegistrationSchema = new mongoose.Schema(
     {
         event: {
             type: Schema.Types.ObjectId,
             ref: "Event",
+            required: true,
         },
         subscriber: {
             type: Schema.Types.ObjectId,
             ref: "User",
+            required: true,
         },
     },
     { timestamps: true }
 );
-registerSchema.index({event: 1, subscriber: 1}, {unique: true})
 
-export const Register = model("Register", registerSchema);
+eventRegistrationSchema.index({ event: 1, subscriber: 1 }, { unique: true });
+
+const EventRegistration = model(
+    "EventRegistration",
+    eventRegistrationSchema
+);
+export default EventRegistration;
