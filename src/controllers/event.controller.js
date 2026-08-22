@@ -12,6 +12,7 @@ import countries from "i18n-iso-countries";
 import en from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import axios from "axios";
 import { response } from "express";
+import { parseLocation } from "../utils/buildLocationUpdate.js";
 countries.registerLocale(en);
 // import { 
 //     sendCoHostsNotification, 
@@ -40,6 +41,7 @@ const createEvent = asyncHandler(async (req, res) => {
         status
     } = req.body;
     // console.log("req", req.body)
+
 
     const thumbnail = req.file?.path;
     let tags = req.body.tags;
@@ -122,6 +124,7 @@ const createEvent = asyncHandler(async (req, res) => {
     }
 
     const thumbnailImg = await uploadOnCloudinary(thumbnail);
+    
     if (!thumbnailImg?.url) {
         throw new ApiError(500, "Error uploading image to Cloudinary");
     }
@@ -155,7 +158,8 @@ const createEvent = asyncHandler(async (req, res) => {
     try {
         newEvent = await Event.create(eventData);
     } catch (error) {
-        await cloudinary.uploader.destroy(thumbnailImg.public._id)
+        console.error("Event.create failed:", error);
+        await cloudinary.uploader.destroy(thumbnailImg.public_id);
         throw new ApiError(500, "Failed to create event");
     }
 

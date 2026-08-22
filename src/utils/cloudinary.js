@@ -3,18 +3,6 @@ dotenv.config();
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs/promises";
 
-// // Add debug logging for configuration
-// console.log("Cloudinary Configuration Status:", {
-//     cloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
-//     apiKey: !!process.env.CLOUDINARY_API_KEY,
-//     apiSecret: !!process.env.CLOUDINARY_API_SECRET,
-// });
-
-// cloudinary.config({
-//     cloud_name: "dsptomo3q",
-//     api_key: "518218992571839",
-//     api_secret: "bESS-9ChFXgX4uhCLkIPa058mg0",
-// });
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -32,7 +20,6 @@ export const uploadOnCloudinary = async (filePath) => {
         // Verify file exists
         try {
             await fs.access(filePath);
-            console.log("File exists and is accessible");
         } catch (error) {
             console.error("File access error:", error);
             return null;
