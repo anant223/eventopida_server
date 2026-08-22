@@ -1,4 +1,4 @@
-import mongoose, { Mongoose, Schema, model } from "mongoose";
+import mongoose, {Schema, model } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const eventSchema = new Schema(
@@ -40,16 +40,77 @@ const eventSchema = new Schema(
             type: Date,
             required: true,
         },
-        location: {
+        eventMode: {
             type: String,
-            default: "online",
+            enum: ["in_person", "online", "hybrid"],
             required: true,
+            default: "in_person",
         },
-        locationId: {
-            type: String,
+        location: {
+            address: {
+                type: String,
+                default: null,
+            },
+            city: {
+                type: String,
+                default: null,
+            },
+            state: {
+                type: String,
+                default: null,
+            },
+            country: {
+                type: String,
+                default: null,
+            },
+            countryCode: {
+                type: String,
+                default: null,
+            },
+            postalCode: {
+                type: String,
+                default: null,
+            },
+            placeId: { type: String, default: null },
+            coordinates: {
+                type: { type: String, enum: ["Point"], default: "Point" },
+                coordinates: { type: [Number], default: undefined}
+            },
         },
-        capacity: {
+        online: {
+            platform: {
+                type: String,
+                enum: ["zoom", "google_meet", "teams", "youtube", "custom"],
+                default: null,
+            },
+            link: {
+                type: String,
+                default: null,
+                required: function () {
+                    return (
+                        this.eventMode === "online" ||
+                        this.eventMode === "hybrid"
+                    );
+                },
+            },
+            linkVisibility: {
+                type: String,
+                enum: ["public", "attendees_only"],
+                default: "attendees_only",
+            },
+        },
+        totalTickets: {
             type: Number,
+            required: function () {
+                return this.eventType === "paid";
+            },
+        },
+        availableTickets: {
+            type: Number,
+            default: function () {
+                return this.totalTickets;
+            },
+            min: 0,
         },
         tags: [
             {
@@ -60,16 +121,51 @@ const eventSchema = new Schema(
         ],
         hosts: [
             {
-                type: Schema.Types.ObjectId,
-                ref: "User",
+                userId: {
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                },
+                status: {
+                    type: String,
+                    enum: ["pending", "accepted", "declined"],
+                    default: "pending",
+                },
+                invitedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                respondedAt: Date,
             },
         ],
+        organizerId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
         eventType: {
             type: String,
             enum: ["public", "private"],
             default: "public",
             lowercase: true,
         },
+        invitedUsers: [
+            {
+                userId: {
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                },
+                status: {
+                    type: String,
+                    enum: ["pending", "accepted", "declined"],
+                    default: "pending",
+                },
+                invitedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                respondedAt: Date,
+            },
+        ],
         ticketType: {
             type: String,
             enum: ["free", "paid"],
@@ -77,8 +173,13 @@ const eventSchema = new Schema(
             lowercase: true,
         },
         price: {
-            type: String,
+            type: Number,
             default: 0,
+        },
+        currency: {
+            type: String,
+            enum: ["USD", "INR"],
+            default: "INR",
         },
         requireApproval: {
             type: Boolean,
@@ -89,10 +190,15 @@ const eventSchema = new Schema(
             unique: true,
             sparse: true,
         },
+        status: {
+            type: String,
+            enum: ["draft", "active", "cancelled", "completed"],
+            default: "active",
+        },
     },
     { timestamps: true }
 );
-
+eventSchema.index({ "location.coordinates": "2dsphere" }, { sparse: true });
 eventSchema.plugin(mongooseAggregatePaginate);
 const Event = model("Event", eventSchema);
 export default Event;
