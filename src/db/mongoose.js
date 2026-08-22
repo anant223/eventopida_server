@@ -1,15 +1,21 @@
 import { DB_NAME } from "../constant.js";
-import mongoose from "mongoose"
+import mongoose from "mongoose";
+import Event from "../models/event.model.js";
 
-const connectDB = async () =>{
+const connectDB = async () => {
     try {
         const connectionInstance = await mongoose.connect(
             `${process.env.MONGODB_URI}/${DB_NAME}`
         );
-        console.log(`\n✅ MongoDB Connected || DB Host : ${connectionInstance.connection.host}`);
+        await Event.syncIndexes();
+
+        console.log(
+            `\n✅ MongoDB Connected || DB Host : ${connectionInstance.connection.host}`
+        );
     } catch (error) {
-        console.log("MongoDB connection has been failed");
-        process.exit(1)
+        console.error("MongoDB connection has been failed:", error);
+        process.exit(1);
     }
-}
+};
+
 export default connectDB;
