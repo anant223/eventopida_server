@@ -1,4 +1,4 @@
-import { ApiError } from "./ApiError.js";
+import ApiError  from "./ApiError.js";
 
 export const parseLocation = (location) => {
     if (!location) return undefined;
