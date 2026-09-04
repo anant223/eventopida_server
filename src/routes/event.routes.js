@@ -22,7 +22,7 @@ import JWTverify from "../middlewares/auth.middleware.js";
 
     router.route("/create").post(JWTverify, upload.single("image"), createEvent);
     router.route("/:eventId").delete(JWTverify, deleteEvent);
-    router.route("/:eventId").put(JWTverify, updateEvent);
+    router.route("/:eventId").put(JWTverify,upload.single("image") , updateEvent);
     router.route("/:eventId").get(JWTverify, findEventById);
     router.route("/:eventId/co-hosts").put(JWTverify, coHosts);    
     router.route("/:eventId/invitations").put(JWTverify, privateUserInvitations);   
