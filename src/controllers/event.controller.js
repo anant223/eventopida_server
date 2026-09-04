@@ -24,6 +24,7 @@ countries.registerLocale(en);
 
 
 const createEvent = asyncHandler(async (req, res) => {
+    const payload = JSON.parse(req.body.data)
     let {
         title,
         desc,
@@ -38,15 +39,11 @@ const createEvent = asyncHandler(async (req, res) => {
         requireApproval,
         eventMode,
         online,
-        status
-    } = req.body;
-    // console.log("req", req.body)
-
+        status,
+        tags
+    } = payload;
 
     const thumbnail = req.file?.path;
-    let tags = req.body.tags;
-
-
 
     if (!title?.trim() || !desc?.trim()) {
         throw new ApiError(400, "Title and description are required");
@@ -64,7 +61,6 @@ const createEvent = asyncHandler(async (req, res) => {
     if (typeof tags === "string") {
         tags = tags.split(",").map((tag) => tag.trim());
     }
-
 
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
@@ -149,6 +145,7 @@ const createEvent = asyncHandler(async (req, res) => {
         status,
         eventMode,
     };
+
 
 
     if (eventType === "private") {
@@ -431,7 +428,6 @@ const updateEvent = asyncHandler(async (req, res) => {
     }
 
     const event = await Event.findById(eventId);
-
     if (!event) {
         throw new ApiError(404, "Event not Found");
     }
@@ -440,12 +436,19 @@ const updateEvent = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Unauthorized to update");
     }
 
+    if (["completed", "cancelled"].includes(event.status)) {
+        throw new ApiError(400, "This event can no longer be updated");
+    }
+
     const eventDate = new Date(event.startDateTime)
     const now = new Date()
 
-    if (eventDate < now) {
+    if (event.status !== "draft" && eventDate < now) {
         throw new ApiError(400, "Past events can't be updated");
+
     }
+   
+    const payload = JSON.parse(req.body.data);
 
     const {
         title,
@@ -454,83 +457,134 @@ const updateEvent = asyncHandler(async (req, res) => {
         startDateTime,
         endDateTime,
         location,
-        capacity,
+        online,
+        eventMode,
+        totalTickets,
         tags,
         eventType,
         ticketType,
         price,
+        currency,
         requireApproval,
-    } = req.body;
+    } = payload;
 
-    let locationUpdate;
-    if (location) {
-        // console.log("location", location);
-        locationUpdate = parseLocation(location);
+
+    /*
+        startDateTime - 1 case - event-paid and status-active and if anyone has bought this event - user cannot update startDateTime
+        2 case - event-free -    
+    */
+
+    if (
+        event.status === "active" &&
+        event.ticketType === "paid"
+    ) {
+        const changes = {
+            price: price !== undefined && price !== event.price,
+            currency: currency !== undefined && currency !== event.currency,
+            location: location !== undefined,
+            startDateTime:
+                startDateTime !== undefined &&
+                new Date(startDateTime).getTime() !==
+                    event.startDateTime.getTime(),
+            endDateTime:
+                endDateTime !== undefined &&
+                new Date(endDateTime).getTime() !== event.endDateTime.getTime(),
+            eventMode: eventMode !== undefined && eventMode !== event.eventMode,
+            ticketType:
+                ticketType !== undefined && ticketType !== event.ticketType,
+            totalTickets:
+                totalTickets !== undefined &&
+                totalTickets !== event.totalTickets,
+        };
+
+        const changed = Object.keys(changes).find((field) => changes[field]);
+        if (changed)
+            throw new ApiError(
+                400,
+                `${changed} can't be changed after tickets have been sold`
+            );
     }
 
     if (!title?.trim()) {
         throw new ApiError(400, "Title can't be empty");
     }
-
     if (!desc?.trim()) {
         throw new ApiError(400, "Desc can't be empty");
-    }
-
-    const startDate = startDateTime
-        ? new Date(startDateTime)
-        : event.startDateTime;
-    const endDate = endDateTime ? new Date(endDateTime) : event.endDateTime;
-
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        throw new ApiError(400, "Invalid date format");
-    }
-
-    if (startDate >= endDate) {
-        throw new ApiError(400, "Start date/time must be before end date/time");
-    }
-    if (startDate < now) {
-        throw new ApiError(400, "Start date/time cannot be in the past");
     }
 
     if (!tags || (Array.isArray(tags) && tags.length === 0)) {
         throw new ApiError(400, "At least one tag required");
     }
+    const newStartDateTime = startDateTime ? new Date(startDateTime) : event.startDateTime;
+    const newEndDateTime = endDateTime ? new Date(endDateTime) : event.endDateTime;
 
-    if (capacity < 0) {
-        throw new ApiError(400, "Can't be negative number");
+
+    if (isNaN(newStartDateTime.getTime()) || isNaN(newEndDateTime.getTime())) {
+        throw new ApiError(400, "Invalid date format");
     }
 
-    if (price < 0) {
-        throw new ApiError(400, "Can't be negative number");
+
+    if (newStartDateTime >= newEndDateTime) {
+        throw new ApiError(400, "Start date/time must be before end date/time");
+    }
+    if (newStartDateTime < now) {
+        throw new ApiError(400, "Start date/time cannot be in the past");
+    }
+    const newLocation = eventMode === "online" ? null : parseLocation(location);
+
+    if (totalTickets !== undefined && totalTickets < 0) {
+        throw new ApiError(400, "Total tickets can't be negative");
+    }
+    if (price !== undefined && price < 0) {
+        throw new ApiError(400, "Price can't be negative");
     }
 
     const updateData = {
-        ...(title && { title }),
-        ...(desc && { desc }),
+        ...(title !== undefined && { title }),
+        ...(desc !== undefined && { desc }),
         ...(category && { category }),
-        ...(startDateTime && { startDateTime: startDate }),
-        ...(endDateTime && { endDateTime: endDate }),
-        ...(locationUpdate && { location: locationUpdate }),
-        ...(capacity !== undefined && { capacity }),
+        ...(startDateTime && { startDateTime: newStartDateTime }),
+        ...(endDateTime && { endDateTime: newEndDateTime }),
+        ...(newLocation !== undefined && { location: newLocation }),
+        ...(totalTickets !== undefined && { totalTickets }),
+        ...(eventMode
+            ? { online: eventMode === "in_person" ? null : online }
+            : online !== undefined && { online }),
+        ...(eventMode && { eventMode }),
         ...(tags && { tags }),
-        ...(eventType && { eventType }),
+        ...(eventType === "private" && !event.token && { token: crypto.randomUUID() }),
+        ...(eventType === "public" && event.token && { token: null }),
         ...(ticketType && { ticketType }),
-        ...(price !== undefined && { price }),
+        ...(price !== undefined && {
+            price: (ticketType ?? event.ticketType) === "paid" ? price : 0,
+        }),
         ...(requireApproval !== undefined && { requireApproval }),
     };
 
-    if (eventType === "private" && !event.token) {
-        event.token = crypto.randomUUID();
-    } else if (eventType === "public" && event.token) {
-        event.token = null;
+    // eventMode - in_person then online.link would be null
+    // else eventMode online/hybrid online.link filled with link right?
+
+    const filter = { _id: eventId, organizerId: req.user._id };
+    if (event.ticketType === "paid") {
+        filter.$expr = { $eq: ["$availableTickets", "$totalTickets"] };
     }
 
     const updatedEvent = await Event.findOneAndUpdate(
-        { _id: eventId, organizerId: req.user._id },
+        filter,
         { $set: updateData},
         { new: true }
     );
+
+    if (!updatedEvent) {
+        const fresh = await Event.findById(eventId);
+        if (fresh && fresh.availableTickets !== fresh.totalTickets) {
+        throw new ApiError(
+                400,
+                "A ticket was just sold — restricted fields can no longer be changed"
+            );
+        }
+        throw new ApiError(404, "Event not found or unauthorized");
+     }
 
     // safeNotify(
     //     () => updateEventNotification(io, updatedEvent),
@@ -572,9 +626,11 @@ const getLivesEventsPreview = asyncHandler(async (req, res) => {
     if (!lat || !lng) {
         throw new ApiError(400, "Location coordinates are required");
     }
-
+   
     const radiusMeters = radius ? parseInt(radius) * 1000 : 50000;
     const fetchSize = pageNum * limitNum;
+
+
 
     const [ticketmasterResult, grupioResult] = await Promise.allSettled([
         fetchTicketmasterEvents({
@@ -632,7 +688,7 @@ const getLivesEventsPreview = asyncHandler(async (req, res) => {
                             $project: {
                                 title: 1,
                                 category: 1,
-                                mode: 1,
+                                eventMode: 1,
                                 startDateTime: 1,
                                 endDateTime: 1,
                                 location: 1,
@@ -677,6 +733,7 @@ const getLivesEventsPreview = asyncHandler(async (req, res) => {
    }
 
    const allEvents = [...grupioEvents, ...ticketmasterEvents];
+//    console.log(allEvents)
 
     return res.status(200).json(
         new ApiResponse(
